@@ -58,9 +58,9 @@ public class DHLApi {
 
     public void sendRequest(OrderInfo orderInfo, List<OrderProductType> orderProductTypeList, String fullDir, String folder_label) {
         try {
-            List<String> partnerTNList = orderLabelService.findAllPartnerTrackingNumber();
+            List<String> trackingNumberList = orderLabelService.findAllTrackingNumberTBLNEWTRACKING();
             boolean hasOrderId = orderLabelService.checkOrderIdInTBLLabel(orderInfo.getOrder_id());
-            String partnerTrackingNumber = null;
+            String trackingNumber = null;
             Gson gson = new Gson();
             BodyRequest bodyRequest = createRequestBody(orderInfo, orderProductTypeList);
             CloseableHttpClient client = HttpClients.createDefault();
@@ -78,13 +78,13 @@ public class DHLApi {
                 String content = IOUtils.toString(httpResponse.getEntity().getContent(), "UTF-8");
                 JSONObject responseObj = new JSONObject(content);
                 System.out.println("- Response: " + responseObj);
-                String trackingNumber = null;
+                String partnerTrackingNumber = null;
                 String stringCode = codeGenerator.codeGenerator();
                 System.out.println("- Code Generator: " + stringCode);
-                if (checkPartnerTrackingNumber(partnerTNList, stringCode)) {
-                    partnerTrackingNumber = codeGenerator.codeGenerator();
+                if (checkPartnerTrackingNumber(trackingNumberList, stringCode)) {
+                    trackingNumber = codeGenerator.codeGenerator();
                 } else {
-                    partnerTrackingNumber = stringCode;
+                    trackingNumber = stringCode;
                 }
                 if (responseObj.has("ShipmentResponse")) {
                     JSONObject shipmentResponse = new JSONObject(responseObj.get("ShipmentResponse").toString());
@@ -104,7 +104,7 @@ public class DHLApi {
                                 orderLabelService.updateLog(shipmentResponse.get("Notification").toString(), orderInfo.getOrder_id());
                                 if (hasOrderId) {
                                     System.out.println("- Updating error to TBL Label...");
-                                    orderLabelService.updateInfoToTBLLabel(orderInfo, responseObj.toString(), gson.toJson(bodyRequest));
+                                    orderLabelService.updateInfoToTBLLabel(orderInfo, null, null, responseObj.toString(), gson.toJson(bodyRequest));
                                 } else {
                                     System.out.println("- Inserting error to TBL Label...");
                                     orderLabelService.insertInfoToTBLlabel(orderInfo, null, null, responseObj.toString(), gson.toJson(bodyRequest));
@@ -117,9 +117,9 @@ public class DHLApi {
                                 JSONArray packageResultArr = new JSONArray(packagesResult.get("PackageResult").toString());
                                 for (int i = 0; i < packageResultArr.length(); i++) {
                                     JSONObject result = new JSONObject(packageResultArr.get(i).toString());
-                                    trackingNumber = result.get("TrackingNumber").toString();
+                                    partnerTrackingNumber = result.get("TrackingNumber").toString();
                                 }
-                                System.out.println("- Tracking Number: " + trackingNumber);
+                                System.out.println("- Tracking Number: " + partnerTrackingNumber);
                             }
                             if (shipmentResponse.has("LabelImage")) {
                                 JSONArray labels = new JSONArray(shipmentResponse.get("LabelImage").toString());
@@ -159,7 +159,7 @@ public class DHLApi {
                                 orderLabelService.update(orderInfo.getOrder_id(), trackingNumber, partnerTrackingNumber, labelPDFBase64, folder_label);
                                 if (hasOrderId) {
                                     System.out.println("- Updating to TBL Label...");
-                                    orderLabelService.updateInfoToTBLLabel(orderInfo, responseObj.toString(), gson.toJson(bodyRequest));
+                                    orderLabelService.updateInfoToTBLLabel(orderInfo, trackingNumber, partnerTrackingNumber, responseObj.toString(), gson.toJson(bodyRequest));
                                 } else {
                                     System.out.println("- Inserting to TBL Label...");
                                     orderLabelService.insertInfoToTBLlabel(orderInfo, trackingNumber, partnerTrackingNumber, responseObj.toString(), gson.toJson(bodyRequest));

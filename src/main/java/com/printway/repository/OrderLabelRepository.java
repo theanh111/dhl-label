@@ -33,11 +33,11 @@ public class OrderLabelRepository {
 
             Connection conn = DriverManager.getConnection(url, username, password);
             String sqlModeQuery = "SET SESSION sql_mode='STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';";
-            String sqlQuery = "SELECT NT.order_id, NOR.logistic, NT.order_code " +
+            String sqlQuery = "SELECT DISTINCT NT.order_id, NOR.logistic, NT.order_code " +
                     "FROM tblnewtracking NT " +
                     "INNER JOIN tblneworders NOR ON NT.order_id = NOR.order_id " +
-                    "WHERE (length(NT.tracking_number) = 0 OR NT.tracking_number IS NULL) " +
-                    "AND (length(NOR.logistic) > 0 OR NOR.logistic IS NOT NULL) " +
+                    "WHERE (LENGTH(NT.partner_tracking_number) = 0 OR NT.partner_tracking_number IS NULL) " +
+                    "AND LENGTH(NOR.logistic) > 0 " +
                     "AND NT.shipped = 0;";
             PreparedStatement sqlMode = conn.prepareStatement(sqlModeQuery);
             PreparedStatement statement = conn.prepareStatement(sqlQuery);
@@ -201,14 +201,16 @@ public class OrderLabelRepository {
         }
     }
 
-    public void updateInfoToTBLLabel(OrderInfo orderInfo, String responseLog, String bodySent) {
+    public void updateInfoToTBLLabel(OrderInfo orderInfo, String trackingNumber, String partnerTrackingNumber, String responseLog, String bodySent) {
         try {
             Connection conn = DriverManager.getConnection(url, username, password);
-            String sqlQuery = "UPDATE tbllabel SET response_log = ?, body_sent = ? WHERE order_id = ?;";
+            String sqlQuery = "UPDATE tbllabel SET tracking_number = ?, partner_tracking_number = ?, response_log = ?, body_sent = ? WHERE order_id = ?;";
             PreparedStatement statement = conn.prepareStatement(sqlQuery);
-            statement.setString(1, responseLog);
-            statement.setString(2, bodySent);
-            statement.setString(3, orderInfo.getOrder_id());
+            statement.setString(1, trackingNumber);
+            statement.setString(2, partnerTrackingNumber);
+            statement.setString(3, responseLog);
+            statement.setString(4, bodySent);
+            statement.setString(5, orderInfo.getOrder_id());
             statement.execute();
             conn.close();
         } catch (SQLException e) {
@@ -216,6 +218,7 @@ public class OrderLabelRepository {
             System.exit(0);
         }
     }
+
 
     public boolean checkOrderIdInTBLLabel(String order_id) {
         try {
@@ -239,22 +242,22 @@ public class OrderLabelRepository {
         return false;
     }
 
-    public List<String> findAllPartnerTrackingNumber() {
-        List<String> partnerTNList = new ArrayList<>();
+    public List<String> findAllTrackingNumberTBLNEWTRACKING() {
+        List<String> trackingNumberList = new ArrayList<>();
         try {
             Connection conn = DriverManager.getConnection(url, username, password);
-            String sqlQuery = "SELECT partner_tracking_number FROM tblnewtracking;";
+            String sqlQuery = "SELECT tracking_number FROM tblnewtracking;";
             PreparedStatement statement = conn.prepareStatement(sqlQuery);
             ResultSet resultSet = statement.executeQuery();
             while (resultSet.next()) {
-                String partnerTrackingNumber = resultSet.getString("partner_tracking_number");
-                partnerTNList.add(partnerTrackingNumber);
+                String trackingNumber = resultSet.getString("tracking_number");
+                trackingNumberList.add(trackingNumber);
             }
             conn.close();
         } catch (SQLException e) {
             e.printStackTrace();
             System.exit(0);
         }
-        return partnerTNList;
+        return trackingNumberList;
     }
 }

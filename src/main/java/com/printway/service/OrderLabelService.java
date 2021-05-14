@@ -32,9 +32,10 @@ public class OrderLabelService {
         orderLabelRepository.insertInfoToTBLLabel(orderInfo, trackingNumber, partnerTrackingNumber, responseLog, bodySent);
     }
 
-    public void updateInfoToTBLLabel(OrderInfo orderInfo, String responseLog, String bodySent) {
-        orderLabelRepository.updateInfoToTBLLabel(orderInfo, responseLog, bodySent);
+    public void updateInfoToTBLLabel(OrderInfo orderInfo, String trackingNumber, String partnerTrackingNumber, String responseLog, String bodySent) {
+        orderLabelRepository.updateInfoToTBLLabel(orderInfo, trackingNumber, partnerTrackingNumber, responseLog, bodySent);
     }
+
 
     public boolean checkOrderIdInTBLLabel(String order_id) {
         return orderLabelRepository.checkOrderIdInTBLLabel(order_id);
@@ -44,7 +45,7 @@ public class OrderLabelService {
         return orderLabelRepository.findOneOrderProductType(orderId);
     }
 
-    public List<String> findAllPartnerTrackingNumber() {
-        return orderLabelRepository.findAllPartnerTrackingNumber();
+    public List<String> findAllTrackingNumberTBLNEWTRACKING() {
+        return orderLabelRepository.findAllTrackingNumberTBLNEWTRACKING();
     }
 }
