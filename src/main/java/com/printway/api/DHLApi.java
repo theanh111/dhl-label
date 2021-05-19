@@ -70,14 +70,14 @@ public class DHLApi {
             String authHeader = "Basic " + new String(encodedAuth);
             httpPost.setHeader(HttpHeaders.AUTHORIZATION, authHeader);
             httpPost.setEntity(new StringEntity(gson.toJson(bodyRequest), ContentType.APPLICATION_JSON));
-            System.out.println("- Body Request: " + gson.toJson(bodyRequest));
+//            System.out.println("- Body Request: " + gson.toJson(bodyRequest));
             HttpResponse httpResponse = client.execute(httpPost);
             int statusCode = httpResponse.getStatusLine().getStatusCode();
             if (statusCode == 200) {
                 System.out.println("- HTTP Status Code: 200");
                 String content = IOUtils.toString(httpResponse.getEntity().getContent(), "UTF-8");
                 JSONObject responseObj = new JSONObject(content);
-                System.out.println("- Response: " + responseObj);
+//                System.out.println("- Response: " + responseObj);
                 String partnerTrackingNumber = null;
                 String stringCode = codeGenerator.codeGenerator();
                 System.out.println("- Code Generator: " + stringCode);
@@ -135,13 +135,14 @@ public class DHLApi {
                                     osf.write(decodedBytes);
                                     osf.flush();
                                     osf.close();
+
+                                    // Get Only Page 1 of Label PDF File
                                     PdfReader reader = new PdfReader(fullDir + "/" + tempFile + ".pdf");
                                     int pdfPages = reader.getNumberOfPages();
                                     reader.close();
                                     String path;
                                     PdfStamper stamper;
                                     for (int j = 1; j <= pdfPages; j++) {
-                                        // Get Only Page 1 of Label PDF File
                                         if (j == 1) {
                                             reader = new PdfReader(fullDir + "/" + tempFile + ".pdf");
                                             reader.selectPages(String.valueOf(j));

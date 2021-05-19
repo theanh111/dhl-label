@@ -1,5 +1,6 @@
 package com.printway;
 
+import com.printway.config.DBConnection;
 import com.printway.service.LabelService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.ExitCodeGenerator;
@@ -38,6 +39,8 @@ public class Application {
             LabelService labelService = new LabelService();
             labelService.getLabel();
             System.out.println("** DONE DHL LABEL! **");
+            //            System.out.println("- SQL Connection: " + DBConnection.getInstance().getConnection().toString().split("@")[1]);
+            DBConnection.getInstance().closeConnection();
             int exitCode = SpringApplication.exit(ctx, new ExitCodeGenerator() {
                 @Override
                 public int getExitCode() {
@@ -48,6 +51,8 @@ public class Application {
         } catch (Exception e) {
             e.printStackTrace();
             ConfigurableApplicationContext ctx = SpringApplication.run(Application.class, args);
+            //            System.out.println("- SQL Connection: " + DBConnection.getInstance().getConnection().toString().split("@")[1]);
+            DBConnection.getInstance().closeConnection();
             int exitCode = SpringApplication.exit(ctx, new ExitCodeGenerator() {
                 @Override
                 public int getExitCode() {

@@ -22,6 +22,7 @@ public class OrderInfo {
     private String material;
     private Double mate_weight;
     private Integer line_item_quantity;
+    private Double totalWeightInGram;
     private Double totalWeightInPound;
     private Double totalWeightInOunces;
     private Double totalWeightInKilogram;

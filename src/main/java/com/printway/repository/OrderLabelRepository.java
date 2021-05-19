@@ -1,6 +1,6 @@
 package com.printway.repository;
 
-import com.printway.config.Database;
+import com.printway.config.DBConnection;
 import com.printway.entityDB.Order;
 import com.printway.entityDB.OrderInfo;
 import com.printway.entityDB.OrderProductType;
@@ -12,36 +12,21 @@ import java.util.List;
 
 @Repository
 public class OrderLabelRepository {
-    private final String url = getDatabase().getUrl();
-    private final String username = getDatabase().getUsername();
-    private final String password = getDatabase().getPassword();
+    public static DBConnection connection = DBConnection.getInstance();
 
     public OrderLabelRepository() {
-    }
-
-    public Database getDatabase() {
-        Database database = new Database();
-        database.getUrl();
-        database.getUsername();
-        database.getPassword();
-        return database;
     }
 
     public List<Order> findAllOrders() {
         List<Order> orderList = new ArrayList<>();
         try {
-
-            Connection conn = DriverManager.getConnection(url, username, password);
-            String sqlModeQuery = "SET SESSION sql_mode='STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';";
             String sqlQuery = "SELECT DISTINCT NT.order_id, NOR.logistic, NT.order_code " +
                     "FROM tblnewtracking NT " +
                     "INNER JOIN tblneworders NOR ON NT.order_id = NOR.order_id " +
                     "WHERE (LENGTH(NT.partner_tracking_number) = 0 OR NT.partner_tracking_number IS NULL) " +
                     "AND LENGTH(NOR.logistic) > 0 " +
                     "AND NT.shipped = 0;";
-            PreparedStatement sqlMode = conn.prepareStatement(sqlModeQuery);
-            PreparedStatement statement = conn.prepareStatement(sqlQuery);
-            sqlMode.execute();
+            PreparedStatement statement = connection.getConnection().prepareStatement(sqlQuery);
             ResultSet resultSet = statement.executeQuery();
             while (resultSet.next()) {
                 Order order = new Order();
@@ -54,10 +39,8 @@ public class OrderLabelRepository {
                 order.setLogistic(resultSet.getString("logistic"));
                 orderList.add(order);
             }
-            conn.close();
         } catch (SQLException e) {
             e.printStackTrace();
-            System.exit(0);
         }
         return orderList;
     }
@@ -65,8 +48,6 @@ public class OrderLabelRepository {
     public OrderInfo fineOneOrderInfo(String orderId) {
         OrderInfo orderInfo = new OrderInfo();
         try {
-            Connection conn = DriverManager.getConnection(url, username, password);
-            String sqlModeQuery = "SET SESSION sql_mode='STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';";
             String sqlQuery = "SELECT " +
                     "NT.order_id, NT.order_code, NT.shipping_name, " +
                     "NT.shipping_address1, NT.shipping_address2, " +
@@ -74,6 +55,7 @@ public class OrderLabelRepository {
                     "NT.shipping_province, NT.shipping_country, NT.shipping_phone, " +
                     "MA.mate_name, " +
                     "(sum(NOR.line_item_quantity)) as line_item_quantity, " +
+                    "(MA.mate_weight * sum(NOR.line_item_quantity)) as totalWeightInGram, " +
                     "((MA.mate_weight * 0.001) * sum(NOR.line_item_quantity)) as totalWeightInKilogram, " +
                     "(MA.mate_height * sum(NOR.line_item_quantity)) as totalHeight, " +
                     "(MA.mate_length * sum(NOR.line_item_quantity)) as totalLength, " +
@@ -84,9 +66,7 @@ public class OrderLabelRepository {
                     "INNER JOIN tblneworders NOR " +
                     "ON NT.order_id = NOR.order_id " +
                     "WHERE NT.order_id = ?;";
-            PreparedStatement sqlMode = conn.prepareStatement(sqlModeQuery);
-            PreparedStatement statement = conn.prepareStatement(sqlQuery);
-            sqlMode.execute();
+            PreparedStatement statement = connection.getConnection().prepareStatement(sqlQuery);
             statement.setString(1, orderId);
             ResultSet resultSet = statement.executeQuery();
             while (resultSet.next()) {
@@ -106,11 +86,10 @@ public class OrderLabelRepository {
                 orderInfo.setTotalHeight(resultSet.getInt("totalHeight"));
                 orderInfo.setTotalLength(resultSet.getInt("totalLength"));
                 orderInfo.setTotalWidth(resultSet.getInt("totalWidth"));
+                orderInfo.setTotalWeightInGram(resultSet.getDouble("totalWeightInGram"));
             }
-            conn.close();
         } catch (SQLException e) {
             e.printStackTrace();
-            System.exit(0);
         }
         return orderInfo;
     }
@@ -118,12 +97,8 @@ public class OrderLabelRepository {
     public List<OrderProductType> findOneOrderProductType(String orderId) {
         List<OrderProductType> orderProductTypeList = new ArrayList<>();
         try {
-            Connection conn = DriverManager.getConnection(url, username, password);
-            String sqlModeQuery = "SET SESSION sql_mode='STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';";
-            String sqlQuery = "select order_id, product_type from tblneworders where order_id = ?;";
-            PreparedStatement sqlMode = conn.prepareStatement(sqlModeQuery);
-            PreparedStatement statement = conn.prepareStatement(sqlQuery);
-            sqlMode.execute();
+            String sqlQuery = "SELECT order_id, product_type FROM tblneworders WHERE order_id = ?;";
+            PreparedStatement statement = connection.getConnection().prepareStatement(sqlQuery);
             statement.setString(1, orderId);
             ResultSet resultSet = statement.executeQuery();
             while (resultSet.next()) {
@@ -132,57 +107,48 @@ public class OrderLabelRepository {
                 orderItemQuantity.setProduct_type(resultSet.getString("product_type"));
                 orderProductTypeList.add(orderItemQuantity);
             }
-            conn.close();
         } catch (SQLException e) {
             e.printStackTrace();
-            System.exit(0);
         }
         return orderProductTypeList;
     }
 
     public void updateTBLNewtracking(String orderId, String trackingNumber, String partnerTrackingNumber, String urlLabel, String folderLabel) {
         try {
-            Connection conn = DriverManager.getConnection(url, username, password);
             String sqlQuery = "UPDATE tblnewtracking SET tracking_number = ?, partner_tracking_number = ?, url_label = ?, folder_label = ? WHERE order_id = ?;";
-            PreparedStatement statement = conn.prepareStatement(sqlQuery);
+            PreparedStatement statement = connection.getConnection().prepareStatement(sqlQuery);
             statement.setString(1, trackingNumber);
             statement.setString(2, partnerTrackingNumber);
             statement.setString(3, urlLabel);
             statement.setString(4, folderLabel);
             statement.setString(5, orderId);
             statement.executeUpdate();
-            conn.close();
         } catch (SQLException e) {
             e.printStackTrace();
-            System.exit(0);
         }
     }
 
     public void updateErrorLog(String error, String orderId) {
         try {
-            Connection conn = DriverManager.getConnection(url, username, password);
             String sqlQuery = "UPDATE tblnewtracking SET multran_log = ? WHERE order_id = ?;";
-            PreparedStatement statement = conn.prepareStatement(sqlQuery);
+            PreparedStatement statement = connection.getConnection().prepareStatement(sqlQuery);
             statement.setString(1, error);
             statement.setString(2, orderId);
             statement.executeUpdate();
-            conn.close();
         } catch (SQLException e) {
             e.printStackTrace();
-            System.exit(0);
         }
     }
 
     public void insertInfoToTBLLabel(OrderInfo orderInfo, String trackingNumber, String partnerTrackingNumber, String responseLog, String bodySent) {
         try {
             Date dateCurrent = new Date(System.currentTimeMillis());
-            Connection conn = DriverManager.getConnection(url, username, password);
             String sqlQuery = "INSERT INTO tbllabel " +
                     "(order_id, weight, height, length, width, material, quantity, tracking_number, partner_tracking_number, response_log, body_sent, dtime_entered) " +
                     "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
-            PreparedStatement statement = conn.prepareStatement(sqlQuery);
+            PreparedStatement statement = connection.getConnection().prepareStatement(sqlQuery);
             statement.setString(1, orderInfo.getOrder_id());
-            statement.setFloat(2, Float.parseFloat(orderInfo.getTotalWeightInKilogram().toString()));
+            statement.setFloat(2, Float.parseFloat(orderInfo.getTotalWeightInGram().toString()));
             statement.setFloat(3, orderInfo.getTotalHeight());
             statement.setFloat(4, orderInfo.getTotalLength());
             statement.setFloat(5, orderInfo.getTotalWidth());
@@ -194,28 +160,29 @@ public class OrderLabelRepository {
             statement.setString(11, bodySent);
             statement.setTimestamp(12, new Timestamp(dateCurrent.getTime()));
             statement.execute();
-            conn.close();
         } catch (SQLException e) {
             e.printStackTrace();
-            System.exit(0);
         }
     }
 
     public void updateInfoToTBLLabel(OrderInfo orderInfo, String trackingNumber, String partnerTrackingNumber, String responseLog, String bodySent) {
         try {
-            Connection conn = DriverManager.getConnection(url, username, password);
-            String sqlQuery = "UPDATE tbllabel SET tracking_number = ?, partner_tracking_number = ?, response_log = ?, body_sent = ? WHERE order_id = ?;";
-            PreparedStatement statement = conn.prepareStatement(sqlQuery);
-            statement.setString(1, trackingNumber);
-            statement.setString(2, partnerTrackingNumber);
-            statement.setString(3, responseLog);
-            statement.setString(4, bodySent);
-            statement.setString(5, orderInfo.getOrder_id());
+            String sqlQuery = "UPDATE tbllabel SET weight = ?, height = ?, length = ?, width = ?, material = ?, quantity = ?, tracking_number = ?, partner_tracking_number = ?, response_log = ?, body_sent = ? WHERE order_id = ?;";
+            PreparedStatement statement = connection.getConnection().prepareStatement(sqlQuery);
+            statement.setFloat(1, Float.parseFloat(orderInfo.getTotalWeightInGram().toString()));
+            statement.setFloat(2, orderInfo.getTotalHeight() * 10);
+            statement.setFloat(3, orderInfo.getTotalLength() * 10);
+            statement.setFloat(4, orderInfo.getTotalWidth() * 10);
+            statement.setString(5, orderInfo.getMaterial());
+            statement.setInt(6, orderInfo.getLine_item_quantity());
+            statement.setString(7, trackingNumber);
+            statement.setString(8, partnerTrackingNumber);
+            statement.setString(9, responseLog);
+            statement.setString(10, bodySent);
+            statement.setString(11, orderInfo.getOrder_id());
             statement.execute();
-            conn.close();
         } catch (SQLException e) {
             e.printStackTrace();
-            System.exit(0);
         }
     }
 
@@ -223,21 +190,18 @@ public class OrderLabelRepository {
     public boolean checkOrderIdInTBLLabel(String order_id) {
         try {
             String orderId = null;
-            Connection conn = DriverManager.getConnection(url, username, password);
             String sqlQuery = "SELECT order_id FROM tbllabel WHERE order_id = ?;";
-            PreparedStatement statement = conn.prepareStatement(sqlQuery);
+            PreparedStatement statement = connection.getConnection().prepareStatement(sqlQuery);
             statement.setString(1, order_id);
             ResultSet resultSet = statement.executeQuery();
             while (resultSet.next()) {
                 orderId = resultSet.getString("order_id");
             }
-            conn.close();
             if (orderId != null) {
                 return true;
             }
         } catch (SQLException e) {
             e.printStackTrace();
-            System.exit(0);
         }
         return false;
     }
@@ -245,18 +209,15 @@ public class OrderLabelRepository {
     public List<String> findAllTrackingNumberTBLNEWTRACKING() {
         List<String> trackingNumberList = new ArrayList<>();
         try {
-            Connection conn = DriverManager.getConnection(url, username, password);
             String sqlQuery = "SELECT tracking_number FROM tblnewtracking;";
-            PreparedStatement statement = conn.prepareStatement(sqlQuery);
+            PreparedStatement statement = connection.getConnection().prepareStatement(sqlQuery);
             ResultSet resultSet = statement.executeQuery();
             while (resultSet.next()) {
                 String trackingNumber = resultSet.getString("tracking_number");
                 trackingNumberList.add(trackingNumber);
             }
-            conn.close();
         } catch (SQLException e) {
             e.printStackTrace();
-            System.exit(0);
         }
         return trackingNumberList;
     }
