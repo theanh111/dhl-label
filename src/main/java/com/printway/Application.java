@@ -35,19 +35,40 @@ public class Application {
 
     public static void main(String[] args) {
         try {
-            ConfigurableApplicationContext ctx = SpringApplication.run(Application.class, args);
-            LabelService labelService = new LabelService();
-            labelService.getLabel();
-            System.out.println("** DONE DHL LABEL! **");
-            //            System.out.println("- SQL Connection: " + DBConnection.getInstance().getConnection().toString().split("@")[1]);
-            DBConnection.getInstance().closeConnection();
-            int exitCode = SpringApplication.exit(ctx, new ExitCodeGenerator() {
-                @Override
-                public int getExitCode() {
-                    return 0;
+            for (String parameter : args) {
+                if (parameter.equals("all")) {
+                    System.out.println("Start Getting Labels...");
+                    ConfigurableApplicationContext ctx = SpringApplication.run(Application.class, args);
+                    LabelService labelService = new LabelService();
+                    labelService.getLabel();
+                    System.out.println("** DONE DHL LABEL! **");
+                    //            System.out.println("- SQL Connection: " + DBConnection.getInstance().getConnection().toString().split("@")[1]);
+                    DBConnection.getInstance().closeConnection();
+                    int exitCode = SpringApplication.exit(ctx, new ExitCodeGenerator() {
+                        @Override
+                        public int getExitCode() {
+                            return 0;
+                        }
+                    });
+                    System.exit(exitCode);
+                } else {
+                    System.out.println("Start Getting Label For ... [" + parameter + "]");
+                    ConfigurableApplicationContext ctx = SpringApplication.run(Application.class, args);
+                    LabelService labelService = new LabelService();
+                    labelService.getLabelByOrderId(parameter);
+                    System.out.println("** DONE DHL LABEL! **");
+                    //            System.out.println("- SQL Connection: " + DBConnection.getInstance().getConnection().toString().split("@")[1]);
+                    DBConnection.getInstance().closeConnection();
+                    int exitCode = SpringApplication.exit(ctx, new ExitCodeGenerator() {
+                        @Override
+                        public int getExitCode() {
+                            return 0;
+                        }
+                    });
+                    System.exit(exitCode);
                 }
-            });
-            System.exit(exitCode);
+            }
+
         } catch (Exception e) {
             e.printStackTrace();
             ConfigurableApplicationContext ctx = SpringApplication.run(Application.class, args);

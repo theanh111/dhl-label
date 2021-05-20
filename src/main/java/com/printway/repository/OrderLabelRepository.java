@@ -45,6 +45,27 @@ public class OrderLabelRepository {
         return orderList;
     }
 
+    public Order findOneOrderByOrderId(String orderId) {
+        Order order = new Order();
+        try {
+            String sqlQuery = "SELECT DISTINCT NT.order_id, NOR.logistic, NT.order_code " +
+                    "FROM tblnewtracking NT " +
+                    "INNER JOIN tblneworders NOR ON NT.order_id = NOR.order_id " +
+                    "WHERE NT.order_id = ?;";
+            PreparedStatement statement = connection.getConnection().prepareStatement(sqlQuery);
+            statement.setString(1, orderId);
+            ResultSet resultSet = statement.executeQuery();
+            if (resultSet.next()) {
+                order.setOrder_id(resultSet.getString("order_id"));
+                order.setLogistic(resultSet.getString("logistic"));
+                order.setOrder_code(resultSet.getString("order_code"));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return order;
+    }
+
     public OrderInfo fineOneOrderInfo(String orderId) {
         OrderInfo orderInfo = new OrderInfo();
         try {

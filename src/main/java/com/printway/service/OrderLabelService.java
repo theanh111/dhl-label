@@ -16,6 +16,10 @@ public class OrderLabelService {
         return orderLabelRepository.findAllOrders();
     }
 
+    public Order findOneOrderByOrderId(String orderId) {
+        return orderLabelRepository.findOneOrderByOrderId(orderId);
+    }
+
     public OrderInfo findOneOrderInfo(String orderId) {
         return orderLabelRepository.fineOneOrderInfo(orderId);
     }
