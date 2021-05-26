@@ -136,14 +136,16 @@ public class OrderLabelRepository {
 
     public void updateTBLNewtracking(String orderId, String trackingNumber, String partnerTrackingNumber, String urlLabel, String folderLabel) {
         try {
-            String sqlQuery = "UPDATE tblnewtracking SET tracking_number = ?, partner_tracking_number = ?, url_label = ?, folder_label = ? WHERE order_id = ?;";
+            String sqlQuery = "UPDATE tblnewtracking SET tracking_number = ?, partner_tracking_number = ?, url_label = ?, folder_label = ?, multran_log = ? WHERE order_id = ?;";
             PreparedStatement statement = connection.getConnection().prepareStatement(sqlQuery);
             statement.setString(1, trackingNumber);
             statement.setString(2, partnerTrackingNumber);
             statement.setString(3, urlLabel);
             statement.setString(4, folderLabel);
-            statement.setString(5, orderId);
+            statement.setString(5, null);
+            statement.setString(6, orderId);
             statement.executeUpdate();
+            DBConnection.getInstance().getConnection().commit();
         } catch (SQLException e) {
             e.printStackTrace();
         }
@@ -156,6 +158,7 @@ public class OrderLabelRepository {
             statement.setString(1, error);
             statement.setString(2, orderId);
             statement.executeUpdate();
+            DBConnection.getInstance().getConnection().commit();
         } catch (SQLException e) {
             e.printStackTrace();
         }
@@ -181,6 +184,7 @@ public class OrderLabelRepository {
             statement.setString(11, bodySent);
             statement.setTimestamp(12, new Timestamp(dateCurrent.getTime()));
             statement.execute();
+            DBConnection.getInstance().getConnection().commit();
         } catch (SQLException e) {
             e.printStackTrace();
         }
@@ -201,7 +205,8 @@ public class OrderLabelRepository {
             statement.setString(9, responseLog);
             statement.setString(10, bodySent);
             statement.setString(11, orderInfo.getOrder_id());
-            statement.execute();
+            statement.executeUpdate();
+            DBConnection.getInstance().getConnection().commit();
         } catch (SQLException e) {
             e.printStackTrace();
         }

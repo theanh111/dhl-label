@@ -37,12 +37,11 @@ public class Application {
         try {
             for (String parameter : args) {
                 if (parameter.equals("all")) {
-                    System.out.println("Start Getting Labels...");
+                    System.out.println("Start Getting Labels... [DHL LABEL]");
                     ConfigurableApplicationContext ctx = SpringApplication.run(Application.class, args);
                     LabelService labelService = new LabelService();
                     labelService.getLabel();
                     System.out.println("** DONE DHL LABEL! **");
-                    //            System.out.println("- SQL Connection: " + DBConnection.getInstance().getConnection().toString().split("@")[1]);
                     DBConnection.getInstance().closeConnection();
                     int exitCode = SpringApplication.exit(ctx, new ExitCodeGenerator() {
                         @Override
@@ -52,12 +51,11 @@ public class Application {
                     });
                     System.exit(exitCode);
                 } else {
-                    System.out.println("Start Getting Label For ... [" + parameter + "]");
+                    System.out.println("Start Getting Label For ... [" + parameter + "] - [DHL LABEL]");
                     ConfigurableApplicationContext ctx = SpringApplication.run(Application.class, args);
                     LabelService labelService = new LabelService();
                     labelService.getLabelByOrderId(parameter);
                     System.out.println("** DONE DHL LABEL! **");
-                    //            System.out.println("- SQL Connection: " + DBConnection.getInstance().getConnection().toString().split("@")[1]);
                     DBConnection.getInstance().closeConnection();
                     int exitCode = SpringApplication.exit(ctx, new ExitCodeGenerator() {
                         @Override
@@ -72,7 +70,6 @@ public class Application {
         } catch (Exception e) {
             e.printStackTrace();
             ConfigurableApplicationContext ctx = SpringApplication.run(Application.class, args);
-            //            System.out.println("- SQL Connection: " + DBConnection.getInstance().getConnection().toString().split("@")[1]);
             DBConnection.getInstance().closeConnection();
             int exitCode = SpringApplication.exit(ctx, new ExitCodeGenerator() {
                 @Override
