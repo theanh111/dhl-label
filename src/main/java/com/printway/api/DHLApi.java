@@ -59,7 +59,6 @@ public class DHLApi {
 
     public void sendRequest(OrderInfo orderInfo, List<OrderMaterial> orderMaterialList, String fullDir, String folder_label, OrderMeasure orderMeasure) {
         try {
-            List<String> trackingNumberList = orderLabelService.findAllTrackingNumberTBLNEWTRACKING();
             boolean hasOrderId = orderLabelService.checkOrderIdInTBLLabel(orderInfo.getOrder_id());
             String trackingNumber = null;
             String partnerTrackingNumber = null;
@@ -94,11 +93,12 @@ public class DHLApi {
                                 JSONObject notification = new JSONObject(notifications.get(i).toString());
                                 System.out.println("- ErrorCode: " + notification.get("@code").toString());
                                 System.out.println("- ErrorMessage: " + notification.get("Message").toString());
-                                orderLabelService.updateLog(shipmentResponse.get("Notification").toString(), orderInfo.getOrder_id());
-                                checkToUpdateAndSaveTBLLabel(orderInfo, orderMeasure, hasOrderId, trackingNumber, partnerTrackingNumber, responseObj, bodyRequest.toString());
+
                             }
                         }
+                        orderLabelService.updateLog(shipmentResponse.get("Notification").toString(), orderInfo.getOrder_id());
                         if (code != null && code.equals("0")) {
+                            List<String> trackingNumberList = orderLabelService.findAllTrackingNumberTBLNEWTRACKING();
                             String stringCode = codeGenerator.codeGenerator();
                             if (checkPartnerTrackingNumber(trackingNumberList, stringCode)) {
                                 trackingNumber = codeGenerator.codeGenerator();
@@ -118,6 +118,7 @@ public class DHLApi {
                                 JSONArray labels = new JSONArray(shipmentResponse.get("LabelImage").toString());
                                 String labelPDFBase64 = null;
                                 String path = null;
+                                String pathFileTemp = null;
                                 for (int i = 0; i < labels.length(); i++) {
                                     String label = labels.get(i).toString();
                                     JSONObject labelImage = new JSONObject(label);
@@ -142,28 +143,29 @@ public class DHLApi {
                                             reader.selectPages(String.valueOf(j));
                                             pathFile = String.format(fullDir + "/" + orderInfo.getOrder_id() + ".pdf", j);
                                             path = fullDir + "/" + orderInfo.getOrder_id() + ".pdf";
+                                            pathFileTemp = fullDir + "/" + tempFile + ".pdf";
                                             stamper = new PdfStamper(reader, new FileOutputStream(pathFile));
                                             stamper.close();
                                             reader.close();
                                         }
                                     }
-                                    File fileTemp = new File(fullDir + "/" + tempFile + ".pdf");
-                                    File file = new File(path);
-                                    if (fileTemp.exists()) {
-                                        fileTemp.delete();
-                                    }
-                                    if (file.exists()) {
-                                        System.out.println("- File: " + pathFile + " is exist!");
-                                        orderLabelService.updateTBLNewtracking(orderInfo.getOrder_id(), trackingNumber, partnerTrackingNumber, folder_label, path);
-                                        checkToUpdateAndSaveTBLLabel(orderInfo, orderMeasure, hasOrderId, trackingNumber, partnerTrackingNumber, responseObj, bodyRequest.toString());
-                                        System.out.println("** UPDATED TO TBLNEWTRACKING: [" + orderInfo.getOrder_id() + "], Folder Label: [" + folder_label + "]");
-                                    } else {
-                                        System.out.println("- CAN'T Find Image File: " + path);
-                                    }
+                                }
+                                File fileTemp = new File(pathFileTemp);
+                                File file = new File(path);
+                                if (fileTemp.exists()) {
+                                    fileTemp.delete();
+                                }
+                                if (file.exists()) {
+                                    System.out.println("- File: " + path + " is exist!");
+                                    orderLabelService.updateTBLNewtracking(orderInfo.getOrder_id(), trackingNumber, partnerTrackingNumber, folder_label, path);
+                                    System.out.println("** UPDATED TO TBLNEWTRACKING: [" + orderInfo.getOrder_id() + "], Folder Label: [" + folder_label + "]");
+                                } else {
+                                    System.out.println("- CAN'T Find Image File: " + path);
                                 }
                             }
                         }
                     }
+                    checkToUpdateAndSaveTBLLabel(orderInfo, orderMeasure, hasOrderId, trackingNumber, partnerTrackingNumber, responseObj, bodyRequest);
                 }
             }
             client.close();
@@ -172,16 +174,18 @@ public class DHLApi {
         }
     }
 
-    public void checkToUpdateAndSaveTBLLabel(OrderInfo orderInfo, OrderMeasure orderMeasure, boolean hasOrderId, String trackingNumber, String partnerTrackingNumber, JSONObject responseObj, String bodyRequest) {
-
+    public void checkToUpdateAndSaveTBLLabel(OrderInfo orderInfo, OrderMeasure orderMeasure, boolean hasOrderId, String trackingNumber, String partnerTrackingNumber, JSONObject responseObj, BodyRequest bodyRequest) {
+        Double heightInMM = orderMeasure.getTotalHeight() * 10;
+        Double lengthInMM = orderMeasure.getTotalLength() * 10;
+        Double widthInMM = orderMeasure.getTotalWidth() * 10;
         if (hasOrderId) {
             System.out.println("- Updating to TBL Label...");
             orderLabelService.updateInfoToTBLLabel(orderInfo, trackingNumber, partnerTrackingNumber, responseObj.toString(), gson.toJson(bodyRequest));
         } else {
             System.out.println("- Inserting to TBL Label...");
             orderLabelService.insertInfoToTBLlabel(orderInfo, trackingNumber, partnerTrackingNumber, responseObj.toString(),
-                    gson.toJson(bodyRequest), orderMeasure.getTotalWeightInGram(), orderMeasure.getTotalHeight(),
-                    orderMeasure.getTotalLength(), orderMeasure.getTotalWidth(), orderMeasure.getMaterial());
+                    gson.toJson(bodyRequest), orderMeasure.getTotalWeightInGram(), heightInMM,
+                    lengthInMM, widthInMM, orderMeasure.getMaterial());
         }
     }
 
