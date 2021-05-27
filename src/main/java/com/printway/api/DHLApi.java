@@ -60,6 +60,7 @@ public class DHLApi {
     public void sendRequest(OrderInfo orderInfo, List<OrderMaterial> orderMaterialList, String fullDir, String folder_label, OrderMeasure orderMeasure) {
         try {
             boolean hasOrderId = orderLabelService.checkOrderIdInTBLLabel(orderInfo.getOrder_id());
+            String code = null;
             String trackingNumber = null;
             String partnerTrackingNumber = null;
             BodyRequest bodyRequest = createRequestBody(orderInfo, orderMeasure, orderMaterialList);
@@ -81,7 +82,6 @@ public class DHLApi {
                 if (responseObj.has("ShipmentResponse")) {
                     JSONObject shipmentResponse = new JSONObject(responseObj.get("ShipmentResponse").toString());
                     if (shipmentResponse.has("Notification")) {
-                        String code = null;
                         JSONArray notifications = new JSONArray(shipmentResponse.get("Notification").toString());
                         for (int i = 0; i < notifications.length(); i++) {
                             if (notifications.length() == 1) {
@@ -97,14 +97,12 @@ public class DHLApi {
                             }
                         }
                         orderLabelService.updateLog(shipmentResponse.get("Notification").toString(), orderInfo.getOrder_id());
+                    }
+
+                    if (shipmentResponse.has("Notification")) {
                         if (code != null && code.equals("0")) {
                             List<String> trackingNumberList = orderLabelService.findAllTrackingNumberTBLNEWTRACKING();
-                            String stringCode = codeGenerator.codeGenerator();
-                            if (checkPartnerTrackingNumber(trackingNumberList, stringCode)) {
-                                trackingNumber = codeGenerator.codeGenerator();
-                            } else {
-                                trackingNumber = stringCode;
-                            }
+                            trackingNumber = returnCodeGenerator(trackingNumberList);
                             if (shipmentResponse.has("PackagesResult")) {
                                 JSONObject packagesResult = new JSONObject(shipmentResponse.get("PackagesResult").toString());
                                 JSONArray packageResultArr = new JSONArray(packagesResult.get("PackageResult").toString());
@@ -135,15 +133,16 @@ public class DHLApi {
                                     PdfReader reader = new PdfReader(fullDir + "/" + tempFile + ".pdf");
                                     int pdfPages = reader.getNumberOfPages();
                                     reader.close();
+
                                     String pathFile = null;
                                     PdfStamper stamper;
                                     for (int j = 1; j <= pdfPages; j++) {
                                         if (j == 1) {
+                                            path = fullDir + "/" + orderInfo.getOrder_id() + ".pdf";
+                                            pathFileTemp = fullDir + "/" + tempFile + ".pdf";
                                             reader = new PdfReader(fullDir + "/" + tempFile + ".pdf");
                                             reader.selectPages(String.valueOf(j));
                                             pathFile = String.format(fullDir + "/" + orderInfo.getOrder_id() + ".pdf", j);
-                                            path = fullDir + "/" + orderInfo.getOrder_id() + ".pdf";
-                                            pathFileTemp = fullDir + "/" + tempFile + ".pdf";
                                             stamper = new PdfStamper(reader, new FileOutputStream(pathFile));
                                             stamper.close();
                                             reader.close();
@@ -158,7 +157,7 @@ public class DHLApi {
                                 if (file.exists()) {
                                     System.out.println("- File: " + path + " is exist!");
                                     orderLabelService.updateTBLNewtracking(orderInfo.getOrder_id(), trackingNumber, partnerTrackingNumber, folder_label, path);
-                                    System.out.println("** UPDATED TO TBLNEWTRACKING: [" + orderInfo.getOrder_id() + "], Folder Label: [" + folder_label + "]");
+                                    System.out.println("** UPDATED TO TBLNewtracking: [" + orderInfo.getOrder_id() + "], Folder Label: [" + folder_label + "]");
                                 } else {
                                     System.out.println("- CAN'T Find Image File: " + path);
                                 }
@@ -173,6 +172,30 @@ public class DHLApi {
             e.printStackTrace();
         }
     }
+
+    public String returnCodeGenerator(List<String> trackingNumberList) {
+        String trackingNumber;
+        String stringCode = codeGenerator.codeGenerator();
+        if (checkTrackingNumber(trackingNumberList, stringCode)) {
+            trackingNumber = codeGenerator.codeGenerator();
+        } else {
+            trackingNumber = stringCode;
+        }
+        return trackingNumber;
+    }
+
+    public boolean checkTrackingNumber(List<String> trackingNumberList, String codeGenerator) {
+        if (trackingNumberList.size() > 0) {
+            for (int i = 0; i < trackingNumberList.size(); i++) {
+                String trackingNumber = trackingNumberList.get(i);
+                if (trackingNumber != null && trackingNumber.equals(codeGenerator)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
 
     public void checkToUpdateAndSaveTBLLabel(OrderInfo orderInfo, OrderMeasure orderMeasure, boolean hasOrderId, String trackingNumber, String partnerTrackingNumber, JSONObject responseObj, BodyRequest bodyRequest) {
         Double heightInMM = orderMeasure.getTotalHeight() * 10;

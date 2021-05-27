@@ -42,7 +42,7 @@ public class Application {
         try {
             for (String parameter : args) {
                 if (parameter.equals("all")) {
-                    System.out.println("Start Getting Labels...  [" + dateCurrentStr + "]");
+                    System.out.println("Start Getting Labels...  [" + dateCurrentStr + "] - [DHL LABEL]");
                     ConfigurableApplicationContext ctx = SpringApplication.run(Application.class, args);
                     LabelService labelService = new LabelService();
                     labelService.getLabel();
