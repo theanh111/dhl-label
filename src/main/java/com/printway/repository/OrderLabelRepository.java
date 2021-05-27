@@ -111,7 +111,7 @@ public class OrderLabelRepository {
                     "NT.order_id, NT.order_code, NT.shipping_name, " +
                     "NT.shipping_address1, NT.shipping_address2, " +
                     "NT.shipping_city, NT.shipping_zip, " +
-                    "NT.shipping_province, NT.shipping_country, NT.shipping_phone, " +
+                    "NT.shipping_province, NT.shipping_country, NOR.shipping_phone, " +
                     "(sum(NOR.line_item_quantity)) as line_item_quantity " +
                     "FROM tblnewtracking NT " +
                     "INNER JOIN tblneworders NOR " +
