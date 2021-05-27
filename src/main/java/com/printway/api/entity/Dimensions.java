@@ -10,11 +10,11 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class Dimensions {
     @SerializedName("Length")
-    private Integer Length;
+    private Double Length;
 
     @SerializedName("Width")
-    private Integer Width;
+    private Double Width;
 
     @SerializedName("Height")
-    private Integer Height;
+    private Double Height;
 }

@@ -2,7 +2,8 @@ package com.printway.service;
 
 import com.printway.entityDB.Order;
 import com.printway.entityDB.OrderInfo;
-import com.printway.entityDB.OrderProductType;
+import com.printway.entityDB.OrderMeasure;
+import com.printway.entityDB.OrderMaterial;
 import com.printway.repository.*;
 import org.springframework.stereotype.Service;
 
@@ -21,19 +22,26 @@ public class OrderLabelService {
     }
 
     public OrderInfo findOneOrderInfo(String orderId) {
-        return orderLabelRepository.fineOneOrderInfo(orderId);
+        return orderLabelRepository.findOrderInfo(orderId);
     }
 
-    public void update(String orderId, String trackingNumber, String partnerTrackingNumber, String urlLabel, String folderLabel) {
-        orderLabelRepository.updateTBLNewtracking(orderId, trackingNumber, partnerTrackingNumber, urlLabel, folderLabel);
+    public List<OrderMeasure> findOrderMeasure(String orderId) {
+        return orderLabelRepository.findOrderMeasure(orderId);
     }
+
+    public void updateTBLNewtracking(String orderId, String trackingNumber, String partnerTrackingNumber, String folderLabel, String urlLabel) {
+        orderLabelRepository.updateTBLNewtracking(orderId, trackingNumber, partnerTrackingNumber, folderLabel, urlLabel);
+    }
+
 
     public void updateLog(String error, String orderId) {
         orderLabelRepository.updateErrorLog(error, orderId);
     }
 
-    public void insertInfoToTBLlabel(OrderInfo orderInfo, String trackingNumber, String partnerTrackingNumber, String responseLog, String bodySent) {
-        orderLabelRepository.insertInfoToTBLLabel(orderInfo, trackingNumber, partnerTrackingNumber, responseLog, bodySent);
+    public void insertInfoToTBLlabel(OrderInfo orderInfo, String trackingNumber, String partnerTrackingNumber, String responseLog,
+                                     String bodySent, Double totalWeightInGram, Double totalHeight, Double totalLength, Double totalWidth, String material) {
+        orderLabelRepository.insertTBLLabel(orderInfo, trackingNumber, partnerTrackingNumber, responseLog, bodySent,
+                                        totalWeightInGram, totalHeight, totalLength, totalWidth, material);
     }
 
     public void updateInfoToTBLLabel(OrderInfo orderInfo, String trackingNumber, String partnerTrackingNumber, String responseLog, String bodySent) {
@@ -45,7 +53,7 @@ public class OrderLabelService {
         return orderLabelRepository.checkOrderIdInTBLLabel(order_id);
     }
 
-    public List<OrderProductType> findOneOrderProductType(String orderId) {
+    public List<OrderMaterial> findOneOrderProductType(String orderId) {
         return orderLabelRepository.findOneOrderProductType(orderId);
     }
 

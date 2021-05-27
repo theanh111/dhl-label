@@ -5,7 +5,8 @@ import com.itextpdf.text.pdf.PdfReader;
 import com.itextpdf.text.pdf.PdfStamper;
 import com.printway.api.entity.*;
 import com.printway.entityDB.OrderInfo;
-import com.printway.entityDB.OrderProductType;
+import com.printway.entityDB.OrderMeasure;
+import com.printway.entityDB.OrderMaterial;
 import com.printway.randomCode.CodeGenerator;
 import com.printway.service.OrderLabelService;
 import org.apache.commons.io.IOUtils;
@@ -22,7 +23,6 @@ import sun.misc.BASE64Decoder;
 
 import java.io.File;
 import java.io.FileOutputStream;
-import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.util.Base64;
@@ -55,14 +55,15 @@ public class DHLApi {
     private OrderLabelService orderLabelService = new OrderLabelService();
 
     private CodeGenerator codeGenerator = new CodeGenerator();
+    private Gson gson = new Gson();
 
-    public void sendRequest(OrderInfo orderInfo, List<OrderProductType> orderProductTypeList, String fullDir, String folder_label) {
+    public void sendRequest(OrderInfo orderInfo, List<OrderMaterial> orderMaterialList, String fullDir, String folder_label, OrderMeasure orderMeasure) {
         try {
             List<String> trackingNumberList = orderLabelService.findAllTrackingNumberTBLNEWTRACKING();
             boolean hasOrderId = orderLabelService.checkOrderIdInTBLLabel(orderInfo.getOrder_id());
             String trackingNumber = null;
-            Gson gson = new Gson();
-            BodyRequest bodyRequest = createRequestBody(orderInfo, orderProductTypeList);
+            String partnerTrackingNumber = null;
+            BodyRequest bodyRequest = createRequestBody(orderInfo, orderMeasure, orderMaterialList);
             CloseableHttpClient client = HttpClients.createDefault();
             HttpPost httpPost = new HttpPost(DHL_EXPRESS_API);
             String auth = USERNAME + ":" + PASSWORD;
@@ -73,19 +74,11 @@ public class DHLApi {
 //            System.out.println("- Body Request: " + gson.toJson(bodyRequest));
             HttpResponse httpResponse = client.execute(httpPost);
             int statusCode = httpResponse.getStatusLine().getStatusCode();
+            System.out.println("- HTTP Status Code: " + statusCode);
             if (statusCode == 200) {
-                System.out.println("- HTTP Status Code: 200");
                 String content = IOUtils.toString(httpResponse.getEntity().getContent(), "UTF-8");
                 JSONObject responseObj = new JSONObject(content);
 //                System.out.println("- Response: " + responseObj);
-                String partnerTrackingNumber = null;
-                String stringCode = codeGenerator.codeGenerator();
-                System.out.println("- Code Generator: " + stringCode);
-                if (checkPartnerTrackingNumber(trackingNumberList, stringCode)) {
-                    trackingNumber = codeGenerator.codeGenerator();
-                } else {
-                    trackingNumber = stringCode;
-                }
                 if (responseObj.has("ShipmentResponse")) {
                     JSONObject shipmentResponse = new JSONObject(responseObj.get("ShipmentResponse").toString());
                     if (shipmentResponse.has("Notification")) {
@@ -102,16 +95,16 @@ public class DHLApi {
                                 System.out.println("- ErrorCode: " + notification.get("@code").toString());
                                 System.out.println("- ErrorMessage: " + notification.get("Message").toString());
                                 orderLabelService.updateLog(shipmentResponse.get("Notification").toString(), orderInfo.getOrder_id());
-                                if (hasOrderId) {
-                                    System.out.println("- Updating error to TBL Label...");
-                                    orderLabelService.updateInfoToTBLLabel(orderInfo, null, null, responseObj.toString(), gson.toJson(bodyRequest));
-                                } else {
-                                    System.out.println("- Inserting error to TBL Label...");
-                                    orderLabelService.insertInfoToTBLlabel(orderInfo, null, null, responseObj.toString(), gson.toJson(bodyRequest));
-                                }
+                                checkToUpdateAndSaveTBLLabel(orderInfo, orderMeasure, hasOrderId, trackingNumber, partnerTrackingNumber, responseObj, bodyRequest.toString());
                             }
                         }
                         if (code != null && code.equals("0")) {
+                            String stringCode = codeGenerator.codeGenerator();
+                            if (checkPartnerTrackingNumber(trackingNumberList, stringCode)) {
+                                trackingNumber = codeGenerator.codeGenerator();
+                            } else {
+                                trackingNumber = stringCode;
+                            }
                             if (shipmentResponse.has("PackagesResult")) {
                                 JSONObject packagesResult = new JSONObject(shipmentResponse.get("PackagesResult").toString());
                                 JSONArray packageResultArr = new JSONArray(packagesResult.get("PackageResult").toString());
@@ -124,6 +117,7 @@ public class DHLApi {
                             if (shipmentResponse.has("LabelImage")) {
                                 JSONArray labels = new JSONArray(shipmentResponse.get("LabelImage").toString());
                                 String labelPDFBase64 = null;
+                                String path = null;
                                 for (int i = 0; i < labels.length(); i++) {
                                     String label = labels.get(i).toString();
                                     JSONObject labelImage = new JSONObject(label);
@@ -140,77 +134,89 @@ public class DHLApi {
                                     PdfReader reader = new PdfReader(fullDir + "/" + tempFile + ".pdf");
                                     int pdfPages = reader.getNumberOfPages();
                                     reader.close();
-                                    String path;
+                                    String pathFile = null;
                                     PdfStamper stamper;
                                     for (int j = 1; j <= pdfPages; j++) {
                                         if (j == 1) {
                                             reader = new PdfReader(fullDir + "/" + tempFile + ".pdf");
                                             reader.selectPages(String.valueOf(j));
-                                            path = String.format(fullDir + "/" + orderInfo.getOrder_id() + ".pdf", j);
-                                            stamper = new PdfStamper(reader, new FileOutputStream(path));
+                                            pathFile = String.format(fullDir + "/" + orderInfo.getOrder_id() + ".pdf", j);
+                                            path = fullDir + "/" + orderInfo.getOrder_id() + ".pdf";
+                                            stamper = new PdfStamper(reader, new FileOutputStream(pathFile));
                                             stamper.close();
                                             reader.close();
                                         }
                                     }
-                                    File file = new File(fullDir + "/" + tempFile + ".pdf");
+                                    File fileTemp = new File(fullDir + "/" + tempFile + ".pdf");
+                                    File file = new File(path);
+                                    if (fileTemp.exists()) {
+                                        fileTemp.delete();
+                                    }
                                     if (file.exists()) {
-                                        file.delete();
+                                        System.out.println("- File: " + pathFile + " is exist!");
+                                        orderLabelService.updateTBLNewtracking(orderInfo.getOrder_id(), trackingNumber, partnerTrackingNumber, folder_label, path);
+                                        checkToUpdateAndSaveTBLLabel(orderInfo, orderMeasure, hasOrderId, trackingNumber, partnerTrackingNumber, responseObj, bodyRequest.toString());
+                                        System.out.println("** UPDATED TO TBLNEWTRACKING: [" + orderInfo.getOrder_id() + "], Folder Label: [" + folder_label + "]");
+                                    } else {
+                                        System.out.println("- CAN'T Find Image File: " + path);
                                     }
                                 }
-                                orderLabelService.update(orderInfo.getOrder_id(), trackingNumber, partnerTrackingNumber, labelPDFBase64, folder_label);
-                                if (hasOrderId) {
-                                    System.out.println("- Updating to TBL Label...");
-                                    orderLabelService.updateInfoToTBLLabel(orderInfo, trackingNumber, partnerTrackingNumber, responseObj.toString(), gson.toJson(bodyRequest));
-                                } else {
-                                    System.out.println("- Inserting to TBL Label...");
-                                    orderLabelService.insertInfoToTBLlabel(orderInfo, trackingNumber, partnerTrackingNumber, responseObj.toString(), gson.toJson(bodyRequest));
-                                }
-                                System.out.println("** UPDATED: [" + orderInfo.getOrder_id() + "], Folder Label: [" + folder_label + "]");
                             }
                         }
                     }
                 }
             }
             client.close();
-        } catch (UnknownHostException unknownHostException) {
-            System.out.println("ERROR: unknownHostException");
-            System.exit(0);
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    public BodyRequest createRequestBody(OrderInfo orderInfo, List<OrderProductType> orderProductTypeList) {
+    public void checkToUpdateAndSaveTBLLabel(OrderInfo orderInfo, OrderMeasure orderMeasure, boolean hasOrderId, String trackingNumber, String partnerTrackingNumber, JSONObject responseObj, String bodyRequest) {
+
+        if (hasOrderId) {
+            System.out.println("- Updating to TBL Label...");
+            orderLabelService.updateInfoToTBLLabel(orderInfo, trackingNumber, partnerTrackingNumber, responseObj.toString(), gson.toJson(bodyRequest));
+        } else {
+            System.out.println("- Inserting to TBL Label...");
+            orderLabelService.insertInfoToTBLlabel(orderInfo, trackingNumber, partnerTrackingNumber, responseObj.toString(),
+                    gson.toJson(bodyRequest), orderMeasure.getTotalWeightInGram(), orderMeasure.getTotalHeight(),
+                    orderMeasure.getTotalLength(), orderMeasure.getTotalWidth(), orderMeasure.getMaterial());
+        }
+    }
+
+    public BodyRequest createRequestBody(OrderInfo orderInfo, OrderMeasure orderMeasure, List<OrderMaterial> orderMaterialList) {
         BodyRequest bodyRequest = new BodyRequest();
-        bodyRequest.setShipmentRequest(createShipmentRequest(orderInfo, orderProductTypeList));
+        bodyRequest.setShipmentRequest(createShipmentRequest(orderInfo, orderMeasure, orderMaterialList));
         return bodyRequest;
     }
 
-    public ShipmentRequest createShipmentRequest(OrderInfo orderInfo, List<OrderProductType> orderProductTypeList) {
+    public ShipmentRequest createShipmentRequest(OrderInfo orderInfo, OrderMeasure orderMeasure, List<OrderMaterial> orderMaterialList) {
         ShipmentRequest shipmentRequest = new ShipmentRequest();
-        shipmentRequest.setRequestedShipment(createRequestedShipment(orderInfo, orderProductTypeList));
+        shipmentRequest.setRequestedShipment(createRequestedShipment(orderInfo, orderMeasure, orderMaterialList));
         return shipmentRequest;
     }
 
-    public InternationalDetail createInternationalDetail(OrderInfo orderInfo, List<OrderProductType> orderProductTypeList) {
+    public InternationalDetail createInternationalDetail(OrderInfo orderInfo, List<OrderMaterial> orderMaterialList) {
         InternationalDetail internationalDetail = new InternationalDetail();
-        internationalDetail.setCommodities(createCommodities(orderInfo, orderProductTypeList));
+        internationalDetail.setCommodities(createCommodities(orderInfo, orderMaterialList));
         return internationalDetail;
     }
 
-    public Commodities createCommodities(OrderInfo orderInfo, List<OrderProductType> orderProductTypeList) {
+    public Commodities createCommodities(OrderInfo orderInfo, List<OrderMaterial> orderMaterialList) {
         String fillLabel = "";
-        for (int i = 0; i < orderProductTypeList.size(); i++) {
-            if (orderProductTypeList.size() == 1) {
-                fillLabel = orderProductTypeList.get(i).getProduct_type();
+        for (int i = 0; i < orderMaterialList.size(); i++) {
+            if (orderMaterialList.size() == 1) {
+                fillLabel = orderMaterialList.get(i).getMaterial();
             } else {
-                if (!orderProductTypeList.get(0).getProduct_type().isEmpty() && i == 0) {
-                    fillLabel = orderProductTypeList.get(0).getProduct_type();
+                if (!orderMaterialList.get(0).getMaterial().isEmpty() && i == 0) {
+                    fillLabel = orderMaterialList.get(0).getOrder_id();
                     continue;
                 }
-                fillLabel = fillLabel.concat("/" + orderProductTypeList.get(i).getProduct_type());
+                fillLabel = fillLabel.concat("/" + orderMaterialList.get(i).getMaterial());
             }
         }
+        System.out.println("- Material: " + fillLabel);
         Commodities commodities = new Commodities();
         commodities.setDescription(fillLabel);
         commodities.setCustomsValue(orderInfo.getLine_item_quantity());
@@ -238,13 +244,13 @@ public class DHLApi {
         return ship;
     }
 
-    public Packages createPackages(OrderInfo orderInfo) {
+    public Packages createPackages(OrderInfo orderInfo, OrderMeasure orderMeasure) {
         Packages packages = new Packages();
-        packages.setRequestedPackages(createRequestedPackages(orderInfo));
+        packages.setRequestedPackages(createRequestedPackages(orderInfo, orderMeasure));
         return packages;
     }
 
-    public RequestedShipment createRequestedShipment(OrderInfo orderInfo, List<OrderProductType> orderProductTypeList) {
+    public RequestedShipment createRequestedShipment(OrderInfo orderInfo, OrderMeasure orderMeasure, List<OrderMaterial> orderMaterialList) {
         Date today = new Date();
         Date tomorrow = new Date(today.getTime() + (1000 * 60 * 60 * 24));
         SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
@@ -253,28 +259,28 @@ public class DHLApi {
         requestedShipment.setShipmentInfo(createShipmentInfo(orderInfo));
         requestedShipment.setShipTimestamp(strDate + TIME_ZONE);
         requestedShipment.setPaymentInfo(DELIVERY_AT_PLACE);
-        requestedShipment.setInternationalDetail(createInternationalDetail(orderInfo, orderProductTypeList));
+        requestedShipment.setInternationalDetail(createInternationalDetail(orderInfo, orderMaterialList));
         requestedShipment.setShip(createShipInfo(orderInfo));
-        requestedShipment.setPackages(createPackages(orderInfo));
+        requestedShipment.setPackages(createPackages(orderInfo, orderMeasure));
         return requestedShipment;
     }
 
-    public RequestedPackages createRequestedPackages(OrderInfo orderInfo) {
+    public RequestedPackages createRequestedPackages(OrderInfo orderInfo, OrderMeasure orderMeasure) {
         // Weight use Kilogram(kg)
         RequestedPackages requestedPackages = new RequestedPackages();
         requestedPackages.setNumber(orderInfo.getLine_item_quantity());
-        requestedPackages.setWeight(orderInfo.getTotalWeightInKilogram());
-        requestedPackages.setDimensions(createDimensionInfo(orderInfo));
+        requestedPackages.setWeight(orderMeasure.getTotalWeightInKg());
+        requestedPackages.setDimensions(createDimensionInfo(orderMeasure));
         requestedPackages.setCustomerReferences(orderInfo.getOrder_code());
         return requestedPackages;
     }
 
-    public Dimensions createDimensionInfo(OrderInfo orderInfo) {
+    public Dimensions createDimensionInfo(OrderMeasure orderMeasure) {
         // use Centimet(cm)
         Dimensions dimensions = new Dimensions();
-        dimensions.setLength(orderInfo.getTotalLength());
-        dimensions.setWidth(orderInfo.getTotalWidth());
-        dimensions.setHeight(orderInfo.getTotalHeight());
+        dimensions.setLength(orderMeasure.getTotalLength());
+        dimensions.setWidth(orderMeasure.getTotalWidth());
+        dimensions.setHeight(orderMeasure.getTotalHeight());
         return dimensions;
     }
 
@@ -287,7 +293,7 @@ public class DHLApi {
         Contact contactRecipient = new Contact();
         contactRecipient.setPersonName(orderInfo.getShipping_name());
         contactRecipient.setCompanyName(orderInfo.getShipping_name());
-        contactRecipient.setPhoneNumber("0");
+        contactRecipient.setPhoneNumber(orderInfo.getShipping_phone());
         Recipient recipient = new Recipient();
         recipient.setAddress(addressRecipient);
         recipient.setContact(contactRecipient);

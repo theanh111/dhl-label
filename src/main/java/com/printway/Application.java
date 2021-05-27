@@ -15,6 +15,8 @@ import org.springframework.core.env.Environment;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 
 import javax.sql.DataSource;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
 @SpringBootApplication
 @AutoConfigurationPackage
@@ -34,10 +36,13 @@ public class Application {
     }
 
     public static void main(String[] args) {
+        Date dateCurrent = new Date();
+        SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        String dateCurrentStr = formatter.format(dateCurrent);
         try {
             for (String parameter : args) {
                 if (parameter.equals("all")) {
-                    System.out.println("Start Getting Labels... [DHL LABEL]");
+                    System.out.println("Start Getting Labels...  [" + dateCurrentStr + "]");
                     ConfigurableApplicationContext ctx = SpringApplication.run(Application.class, args);
                     LabelService labelService = new LabelService();
                     labelService.getLabel();

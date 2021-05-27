@@ -18,16 +18,5 @@ public class OrderInfo {
     private String shipping_province;
     private String shipping_country;
     private String shipping_phone;
-    private String product_type;
-    private String material;
-    private Double mate_weight;
     private Integer line_item_quantity;
-    private Double totalWeightInGram;
-    private Double totalWeightInPound;
-    private Double totalWeightInOunces;
-    private Double totalWeightInKilogram;
-    private Integer totalWeight;
-    private Integer totalHeight;
-    private Integer totalLength;
-    private Integer totalWidth;
 }
